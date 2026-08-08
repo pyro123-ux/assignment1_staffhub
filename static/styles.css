@@ -228,3 +228,22 @@ th {
 .muted {
     color: var(--muted);
 }
+
+.filter-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem;
+    align-items: end;
+    margin-bottom: 1rem;
+}
+
+.filter-form .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.filter-form .actions {
+    display: flex;
+    gap: 0.5rem;
+}

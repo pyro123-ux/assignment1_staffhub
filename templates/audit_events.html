@@ -1,9 +1,71 @@
 {% extends "base.html" %}
 {% block title %}Audit Events | StaffHub{% endblock %}
 {% block content %}
-<h1>Audit Events</h1>
+<div class="page-heading">
+    <h1>Audit Events</h1>
+</div>
+<p class="muted">
+    {% if manager_locked %}
+        Showing events for your department ({{ selected_department }}) only.
+    {% else %}
+        Showing events across all departments.
+    {% endif %}
+</p>
 
 <section class="card">
+    <form method="get" action="{{ url_for('audit_events_view') }}" class="filter-form">
+        <div class="field">
+            <label for="event_type">Event type</label>
+            <select id="event_type" name="event_type">
+                <option value="" {% if not selected_event_type %}selected{% endif %}>All types</option>
+                {% for option in event_types %}
+                <option value="{{ option }}" {% if option == selected_event_type %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="severity">Severity</label>
+            <select id="severity" name="severity">
+                <option value="" {% if not selected_severity %}selected{% endif %}>All severities</option>
+                {% for option in severities %}
+                <option value="{{ option }}" {% if option == selected_severity %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="department">Department</label>
+            {% if manager_locked %}
+            <select id="department" disabled>
+                <option selected>{{ selected_department }}</option>
+            </select>
+            {% else %}
+            <select id="department" name="department">
+                <option value="" {% if not selected_department %}selected{% endif %}>All departments</option>
+                {% for option in departments %}
+                <option value="{{ option }}" {% if option == selected_department %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+
+        <div class="field">
+            <label for="start_date">From date</label>
+            <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+        </div>
+
+        <div class="field">
+            <label for="end_date">To date</label>
+            <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+        </div>
+
+        <div class="field actions">
+            <button type="submit">Apply filters</button>
+            <a class="button" href="{{ url_for('audit_events_view') }}">Clear</a>
+        </div>
+    </form>
+
     <table>
         <thead>
             <tr>
@@ -28,7 +90,7 @@
                 <td>{{ event["created_at"] }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="7">No audit events found.</td></tr>
+            <tr><td colspan="7">No audit events found for the selected filters.</td></tr>
             {% endfor %}
         </tbody>
     </table>

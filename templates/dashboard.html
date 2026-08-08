@@ -28,4 +28,12 @@
         <li>Dashboard or management areas, where appropriate.</li>
     </ul>
 </section>
+
+{% if g.current_user["role"] in ("Manager", "Admin") %}
+<section class="card">
+    <h2>Management</h2>
+    <p>Review security-relevant audit events{% if g.current_user["role"] == "Manager" %} for your department{% endif %}.</p>
+    <a class="button" href="{{ url_for('audit_events_view') }}">View Audit Log</a>
+</section>
+{% endif %}
 {% endblock %}
