@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Audit Events | StaffHub{% endblock %}
+{% block content %}
+<h1>Audit Events</h1>
+
+<section class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Severity</th>
+                <th>Department</th>
+                <th>Actor</th>
+                <th>Message</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr>
+                <td>{{ event["id"] }}</td>
+                <td>{{ event["event_type"] }}</td>
+                <td>{{ event["severity"] }}</td>
+                <td>{{ event["department"] }}</td>
+                <td>{{ event["actor_username"] }}</td>
+                <td>{{ event["message"] }}</td>
+                <td>{{ event["created_at"] }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7">No audit events found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

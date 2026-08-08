@@ -20,6 +20,9 @@ from config import DATABASE_PATH, SECRET_KEY
 
 CATEGORIES = ["IT Support", "Facilities", "HR", "Finance", "General Enquiry"]
 PRIORITIES = ["Low", "Medium", "High", "Urgent"]
+AUDIT_EVENT_TYPES = ["LOGIN", "INVALID_INPUT", "RESTRICTED_ACTION", "ADMIN_ACTION", "ACCESS_DENIED"]
+AUDIT_SEVERITIES = ["Info", "Warning", "Error"]
+AUDIT_DEPARTMENTS = ["HR", "IT", "Corporate"]
 
 
 def create_app() -> Flask:
@@ -183,6 +186,82 @@ def create_app() -> Flask:
     def profile():
         return render_template("profile.html")
 
+    @app.route("/audit")
+    @login_required
+    def audit_events_view():
+        user = g.current_user
+        if not (is_admin(user) or is_manager(user)):
+            abort(403)
+
+        event_type = request.args.get("event_type", "").strip()
+        severity = request.args.get("severity", "").strip()
+        start_date = request.args.get("start_date", "").strip()
+        end_date = request.args.get("end_date", "").strip()
+        department = request.args.get("department", "").strip()
+
+        conditions = []
+        params: list[Any] = []
+
+        if is_manager(user):
+            # Managers are always scoped to their own department, regardless of
+            # any department value submitted in the query string.
+            conditions.append("department = ?")
+            params.append(user["department"])
+        elif department:
+            if department not in AUDIT_DEPARTMENTS:
+                abort(400)
+            conditions.append("department = ?")
+            params.append(department)
+
+        if event_type:
+            if event_type not in AUDIT_EVENT_TYPES:
+                abort(400)
+            conditions.append("event_type = ?")
+            params.append(event_type)
+
+        if severity:
+            if severity not in AUDIT_SEVERITIES:
+                abort(400)
+            conditions.append("severity = ?")
+            params.append(severity)
+
+        if start_date:
+            if parse_date(start_date) is None:
+                abort(400)
+            conditions.append("date(created_at) >= date(?)")
+            params.append(start_date)
+
+        if end_date:
+            if parse_date(end_date) is None:
+                abort(400)
+            conditions.append("date(created_at) <= date(?)")
+            params.append(end_date)
+
+        query = "SELECT * FROM audit_events"
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY created_at DESC"
+
+        events = query_all(query, tuple(params))
+
+        return render_template(
+            "audit_events.html",
+            events=events,
+            event_types=AUDIT_EVENT_TYPES,
+            severities=AUDIT_SEVERITIES,
+            departments=AUDIT_DEPARTMENTS,
+            selected_event_type=event_type,
+            selected_severity=severity,
+            selected_department=user["department"] if is_manager(user) else department,
+            start_date=start_date,
+            end_date=end_date,
+            manager_locked=is_manager(user),
+        )
+
+    @app.errorhandler(400)
+    def bad_request(error):
+        return render_template("error.html", code=400, message="The request could not be processed."), 400
+
     @app.errorhandler(403)
     def forbidden(error):
         return render_template("error.html", code=403, message="You are not allowed to access this page."), 403
@@ -220,6 +299,15 @@ def current_timestamp() -> str:
     from datetime import datetime
 
     return datetime.now().replace(microsecond=0).isoformat(sep=" ")
+
+
+def parse_date(value: str) -> Any:
+    from datetime import datetime
+
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
 
 
 def get_current_user() -> sqlite3.Row | None:
