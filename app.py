@@ -58,6 +58,13 @@ def create_app() -> Flask:
             )
 
             if user is None or not check_password_hash(user["password_hash"], password):
+                log_audit_event(
+                    "LOGIN",
+                    "Warning",
+                    user["department"] if user is not None else "Unknown",
+                    username or "unknown",
+                    "Failed login attempt.",
+                )
                 flash("Invalid username or password.", "error")
                 return render_template("login.html"), 401
 
@@ -137,6 +144,13 @@ def create_app() -> Flask:
             if errors:
                 for error in errors:
                     flash(error, "error")
+                log_audit_event(
+                    "INVALID_INPUT",
+                    "Warning",
+                    g.current_user["department"],
+                    g.current_user["username"],
+                    "Record submission rejected due to invalid input.",
+                )
                 return render_template("record_form.html", categories=CATEGORIES, priorities=PRIORITIES), 400
 
             now = current_timestamp()
@@ -177,6 +191,13 @@ def create_app() -> Flask:
             or record["owner_id"] == user["id"]
         )
         if not in_scope:
+            log_audit_event(
+                "ACCESS_DENIED",
+                "Warning",
+                user["department"],
+                user["username"],
+                f"Attempted to access record {record_id} outside permitted scope.",
+            )
             abort(403)
 
         return render_template("record_detail.html", record=record)
@@ -191,6 +212,13 @@ def create_app() -> Flask:
     def audit_events_view():
         user = g.current_user
         if not (is_admin(user) or is_manager(user)):
+            log_audit_event(
+                "RESTRICTED_ACTION",
+                "Warning",
+                user["department"],
+                user["username"],
+                "Attempted to access the audit event viewer without sufficient role.",
+            )
             abort(403)
 
         event_type = request.args.get("event_type", "").strip()
@@ -308,6 +336,18 @@ def parse_date(value: str) -> Any:
         return datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError:
         return None
+
+
+def log_audit_event(event_type: str, severity: str, department: str, actor_username: str, message: str) -> None:
+    db = get_db()
+    db.execute(
+        """
+        INSERT INTO audit_events (event_type, severity, department, actor_username, message, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (event_type, severity, department, actor_username, message, current_timestamp()),
+    )
+    db.commit()
 
 
 def get_current_user() -> sqlite3.Row | None:
