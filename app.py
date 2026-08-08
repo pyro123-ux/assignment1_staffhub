@@ -18,6 +18,9 @@ from werkzeug.security import check_password_hash
 
 from config import DATABASE_PATH, SECRET_KEY
 
+CATEGORIES = ["IT Support", "Facilities", "HR", "Finance", "General Enquiry"]
+PRIORITIES = ["Low", "Medium", "High", "Urgent"]
+
 
 def create_app() -> Flask:
     app = Flask(__name__)
@@ -88,29 +91,50 @@ def create_app() -> Flask:
     @app.route("/records")
     @login_required
     def records():
-        # Starter behaviour: this list is deliberately broad.
-        # Students should review whether the final application enforces appropriate role, ownership,
-        # department, and scope rules for their assignment.
-        rows = query_all(
-            """
+        base_query = """
             SELECT records.*, users.full_name AS owner_name, users.department AS owner_department
             FROM records
             JOIN users ON records.owner_id = users.id
-            ORDER BY records.created_at DESC
-            """
-        )
+        """
+
+        if is_admin(g.current_user):
+            rows = query_all(base_query + " ORDER BY records.created_at DESC")
+        elif is_manager(g.current_user):
+            rows = query_all(
+                base_query + " WHERE users.department = ? ORDER BY records.created_at DESC",
+                (g.current_user["department"],),
+            )
+        else:
+            rows = query_all(
+                base_query + " WHERE records.owner_id = ? ORDER BY records.created_at DESC",
+                (g.current_user["id"],),
+            )
+
         return render_template("records.html", records=rows)
 
     @app.route("/records/new", methods=["GET", "POST"])
     @login_required
     def new_record():
         if request.method == "POST":
-            # Starter behaviour: minimal processing only.
-            # Students should apply appropriate validation and secure control flow before submission.
-            title = request.form.get("title", "")
-            category = request.form.get("category", "")
-            description = request.form.get("description", "")
-            priority = request.form.get("priority", "Medium")
+            title = request.form.get("title", "").strip()
+            category = request.form.get("category", "").strip()
+            description = request.form.get("description", "").strip()
+            priority = request.form.get("priority", "").strip()
+
+            errors = []
+            if not title or len(title) > 120:
+                errors.append("Title is required and must be 120 characters or fewer.")
+            if category not in CATEGORIES:
+                errors.append("Category must be one of the listed options.")
+            if priority not in PRIORITIES:
+                errors.append("Priority must be one of the listed options.")
+            if not description or len(description) > 2000:
+                errors.append("Description is required and must be 2000 characters or fewer.")
+
+            if errors:
+                for error in errors:
+                    flash(error, "error")
+                return render_template("record_form.html", categories=CATEGORIES, priorities=PRIORITIES), 400
 
             now = current_timestamp()
             db = get_db()
@@ -125,13 +149,11 @@ def create_app() -> Flask:
             flash("Record submitted.", "success")
             return redirect(url_for("records"))
 
-        return render_template("record_form.html")
+        return render_template("record_form.html", categories=CATEGORIES, priorities=PRIORITIES)
 
     @app.route("/records/<int:record_id>")
     @login_required
     def record_detail(record_id: int):
-        # Starter behaviour: record lookup is intentionally simple.
-        # Students should review the required access rules for the final application.
         record = query_one(
             """
             SELECT records.*, users.full_name AS owner_name, users.department AS owner_department
@@ -144,6 +166,15 @@ def create_app() -> Flask:
 
         if record is None:
             abort(404)
+
+        user = g.current_user
+        in_scope = (
+            is_admin(user)
+            or (is_manager(user) and record["owner_department"] == user["department"])
+            or record["owner_id"] == user["id"]
+        )
+        if not in_scope:
+            abort(403)
 
         return render_template("record_detail.html", record=record)
 

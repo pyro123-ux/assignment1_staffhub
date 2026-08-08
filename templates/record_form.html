@@ -8,14 +8,18 @@
         <input id="title" name="title" maxlength="120" required>
 
         <label for="category">Category</label>
-        <input id="category" name="category" placeholder="e.g. IT Support" required>
+        <select id="category" name="category" required>
+            <option value="" disabled selected>Select a category</option>
+            {% for option in categories %}
+            <option value="{{ option }}">{{ option }}</option>
+            {% endfor %}
+        </select>
 
         <label for="priority">Priority</label>
         <select id="priority" name="priority">
-            <option>Low</option>
-            <option selected>Medium</option>
-            <option>High</option>
-            <option>Urgent</option>
+            {% for option in priorities %}
+            <option value="{{ option }}" {% if option == "Medium" %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
         </select>
 
         <label for="description">Description</label>
