@@ -6,6 +6,14 @@ The application is intentionally simple. It is provided so that you can run, ins
 
 Do not assume that the starter application is already secure or complete. You are responsible for reviewing the code, improving security controls, implementing your assigned feature variation, testing your work, and explaining your decisions.
 
+## 0. Implementation Status (this submission)
+
+Assigned variation: **Variation E — Basic Audit Event Viewer**.
+
+- Common core security controls have been implemented and tested: authentication/session checks on all protected routes, role-based access control and ownership/department scope checks on records, server-side validation and allowlist checks on record submission, safe display (stored XSS on record descriptions fixed), and consistent 400/403/404/500 error handling.
+- Variation E is implemented and integrated: an `/audit` route and Audit Log page, reachable from the dashboard and navigation for Manager and Admin roles only, with server-side allowlist/date validation on all filters and department scope enforced for Managers regardless of client-submitted filter values.
+- See the project's Git history for the progressive development record (common core, then variation route, then variation template/UI, then testing, then cleanup).
+
 ## 1. Application Overview
 
 StaffHub is an internal web application used by employees, managers, and administrators.
@@ -13,12 +21,12 @@ StaffHub is an internal web application used by employees, managers, and adminis
 The starter application currently includes:
 
 - login and logout;
-- a dashboard;
-- record submission;
-- record listing;
-- record details;
+- a dashboard, including an Audit Log entry point for Manager/Admin roles;
+- record submission, with server-side validation and allowlist checks;
+- record listing and record details, scoped by role/ownership/department;
 - a basic profile page;
-- a seeded audit event table for students assigned the audit event viewer variation.
+- an audit event viewer (`/audit`), restricted to Manager and Admin roles, with
+  filtering by event type, severity, department, and date range.
 
 Your assignment may require you to create or modify routes, templates, forms, database tables, database queries, validation logic, access-control checks, and supporting code.
 
@@ -78,6 +86,8 @@ Password123!
 | mina | Manager | HR |
 | adam | Admin | Corporate |
 
+Audit Log (`/audit`) access by role: Employee — no access (403); Manager — own department only; Admin — all departments.
+
 ## 5. Project Structure
 
 ```text
@@ -90,6 +100,7 @@ staffhub_starter/
 ├── static/
 │   └── styles.css
 ├── templates/
+│   ├── audit_events.html
 │   ├── base.html
 │   ├── dashboard.html
 │   ├── error.html
@@ -128,7 +139,7 @@ Depending on your assigned variation, you may need to work with areas such as:
 | Priority Change Request | Record details, priority request submission, user record view, manager/admin review area |
 | Department Announcement Feature | Dashboard, announcement page, announcement management pages, navigation |
 | Notification Preference Management | Profile/account page, preference page, user-specific preference storage |
-| Basic Audit Event Viewer | Admin/management area, audit event listing, filters, seeded audit event table |
+| Basic Audit Event Viewer | **Implemented in this submission** — see `/audit` route, dashboard/nav entry, filters, seeded audit event table |
 | Support Resource Management | Help/support/resource pages, resource management pages, dashboard/navigation |
 
 Follow the assignment brief and your assigned variation card for the exact expectations.
